@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Chess Copilot — Climb</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#FAF9F5" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#1B1916" media="(prefers-color-scheme: dark)" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Climb" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="icon" href="/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --canvas:#EBE7DE; --paper:#FAF9F5; --surface:#FFFFFF; --inset:#F3F1EA;
+  --ink:#272320; --ink-2:#6F6A60; --ink-3:#A39D90;
+  --line:#E8E3D8; --line-2:#EFEBE1;
+  --accent:#D97757;
+  --good:#6F8F6A; --warn:#C28F3D; --bad:#BC6E5E;
+  --good-tint:#E7EEE3; --warn-tint:#F6ECD8; --bad-tint:#F4E2DC; --accent-tint:#FAE8E0;
+  --sh-sm:0 1px 2px rgba(40,35,28,.05);
+  --sh:0 1px 2px rgba(40,35,28,.04), 0 10px 26px -14px rgba(40,35,28,.18);
+  --serif:'Newsreader',Georgia,serif;
+  --sans:'Hanken Grotesk',system-ui,-apple-system,sans-serif;
+  --r:18px; --r-sm:13px; --r-xs:10px;
+}
+[data-theme="dark"]{
+  --canvas:#121110; --paper:#1B1916; --surface:#26221C; --inset:#2E2A22;
+  --ink:#F1ECE1; --ink-2:#ADA593; --ink-3:#7C7464;
+  --line:#34302A; --line-2:#2C2922;
+  --good-tint:#222A20; --warn-tint:#2E2A1D; --bad-tint:#2F231F; --accent-tint:#33251E;
+  --sh:0 1px 2px rgba(0,0,0,.25), 0 12px 30px -16px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;}
+body{
+  background:var(--canvas); color:var(--ink); font-family:var(--sans);
+  -webkit-font-smoothing:antialiased; line-height:1.45;
+  transition:background .35s ease, color .35s ease;
+}
+b{font-weight:700;} em,i{font-style:normal;}
+.tone-good-text{color:var(--good);} .tone-warn-text{color:var(--warn);} .tone-bad-text{color:var(--bad);}
+.tone-bad{color:var(--bad);}
+
+.app-header{
+  max-width:520px; margin:0 auto; padding:30px 20px 6px;
+  display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;
+}
+.brand{display:flex; align-items:baseline; gap:10px;}
+.brand-mark{font-family:var(--serif); font-weight:600; font-size:30px; letter-spacing:-.02em; color:var(--ink);}
+.brand-tag{font-size:12.5px; color:var(--ink-2);}
+.brand-tag b{color:var(--accent); font-weight:600;}
+.player-chip{
+  display:flex; align-items:center; gap:12px; padding:8px 8px 8px 14px;
+  background:var(--surface); border:1px solid var(--line); border-radius:999px; box-shadow:var(--sh-sm);
+}
+.player-chip .pc-name{font-weight:600; font-size:13px;}
+.player-chip .pc-sub{font-size:11px; color:var(--ink-3);}
+.player-chip .pc-rating{
+  font-family:var(--serif); font-weight:600; font-size:16px;
+  background:var(--accent); color:#fff; border-radius:999px; padding:4px 12px; letter-spacing:-.01em;
+}
+
+/* ---------- phone ---------- */
+.stage{display:flex; justify-content:center; padding:14px 16px 40px;}
+.phone{
+  position:relative; width:min(404px,94vw); height:min(862px,86vh); min-height:680px;
+  background:var(--paper); border:1px solid var(--line); border-radius:34px;
+  box-shadow:var(--sh); overflow:hidden; display:flex; flex-direction:column;
+  transition:background .35s ease, border-color .35s ease;
+}
+.phone-scroll{flex:1; overflow-y:auto; padding:22px 18px 92px; display:flex; flex-direction:column; gap:13px; scrollbar-width:none;}
+.phone-scroll::-webkit-scrollbar{display:none;}
+
+.botnav{
+  position:absolute; left:0; right:0; bottom:0; height:74px;
+  display:flex; justify-content:space-around; align-items:center;
+  background:color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter:blur(12px) saturate(1.2);
+  border-top:1px solid var(--line); padding-bottom:6px;
+}
+.botnav-item{
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  color:var(--ink-3); font-size:11px; font-weight:600; letter-spacing:.01em;
+  background:none; border:0; cursor:pointer; font-family:var(--sans); padding:6px 14px; border-radius:12px;
+}
+.botnav-item.is-active{color:var(--accent);}
+
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:16px 16px 15px; box-shadow:var(--sh-sm);}
+.card-label{font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3); margin-bottom:11px;}
+.card-foot{font-size:12.5px; color:var(--ink-2); margin:12px 0 0; line-height:1.4;}
+
+.scr-head{padding:4px 2px 0;}
+.scr-title{font-family:var(--serif); font-weight:600; font-size:30px; letter-spacing:-.02em; margin:0;}
+.scr-sub{font-size:13.5px; color:var(--ink-2); margin:3px 0 0;}
+
+.dot{border-radius:50%; display:inline-block; flex:0 0 auto;}
+.dot.tone-good{background:var(--good);} .dot.tone-warn{background:var(--warn);}
+.dot.tone-bad{background:var(--bad);} .dot.tone-accent{background:var(--accent);}
+.pip{width:22px; height:22px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff;}
+.pip.tone-good{background:var(--good);} .pip.tone-bad{background:var(--bad);}
+
+.scr-topbar{display:flex; align-items:center; justify-content:space-between; padding:0 2px;}
+.scr-date{font-size:13px; color:var(--ink-3); font-weight:500; white-space:nowrap;}
+.scr-rating{font-family:var(--serif); font-weight:600; font-size:18px; white-space:nowrap;}
+.scr-rating em{font-size:11px; color:var(--ink-3); font-weight:400; font-family:var(--sans); margin-left:3px;}
+
+.banner{border:1px solid var(--line); border-radius:var(--r); padding:18px 18px 17px;}
+.banner.tone-warn{background:var(--warn-tint); border-color:color-mix(in srgb,var(--warn) 30%, var(--line));}
+.banner.tone-good{background:var(--good-tint); border-color:color-mix(in srgb,var(--good) 28%, var(--line));}
+.banner-row{display:flex; align-items:center; gap:8px; margin-bottom:10px;}
+.banner-kicker{font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--warn);}
+.banner.tone-good .banner-kicker{color:var(--good);}
+.banner-head{font-family:var(--serif); font-weight:500; font-size:23px; line-height:1.18; letter-spacing:-.01em; margin:0 0 8px;}
+.banner-body{font-size:13.5px; color:var(--ink-2); margin:0; line-height:1.46;}
+.banner-body b{color:var(--ink);}
+
+.record{display:flex; align-items:baseline; gap:6px;}
+.record-num{font-family:var(--serif); font-weight:600; font-size:52px; letter-spacing:-.03em; line-height:1;}
+.record-dash{font-family:var(--serif); font-size:40px; color:var(--ink-3); line-height:1;}
+.record-delta{display:inline-flex; align-items:center; gap:1px; font-weight:700; font-size:15px; margin-left:8px; align-self:center;}
+.record-meta{display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:12.5px; color:var(--ink-2);}
+.record-rating{font-family:var(--serif); font-size:15px; color:var(--ink);}
+.record-rating i{margin-left:5px; font-size:13px; font-family:var(--sans); font-weight:700;}
+.pips-row{display:flex; align-items:center; gap:10px; margin-top:13px; padding-top:13px; border-top:1px solid var(--line-2);}
+.pips-label{font-size:11.5px; font-weight:600; color:var(--ink-3); letter-spacing:.04em;}
+.pips{display:flex; gap:6px;}
+
+.card-key{border-color:color-mix(in srgb,var(--accent) 26%, var(--line)); background:color-mix(in srgb,var(--accent-tint) 60%, var(--surface));}
+.key-top{display:flex; align-items:flex-start; justify-content:space-between;}
+.key-num{font-family:var(--serif); font-weight:600; font-size:50px; line-height:.95; letter-spacing:-.03em; color:var(--accent);}
+.key-goal{text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:1px; padding-top:6px;}
+.key-goal-num{font-family:var(--serif); font-size:24px; font-weight:600; color:var(--ink-3);}
+.key-goal-lbl{font-size:10.5px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3);}
+.key-bar{height:6px; border-radius:99px; background:color-mix(in srgb,var(--accent) 16%, transparent); margin:14px 0 0; overflow:hidden;}
+.key-bar span{display:block; height:100%; background:var(--accent); border-radius:99px;}
+.key-note{font-size:12.5px; color:var(--ink-2); margin:11px 0 0; line-height:1.45;}
+
+.coach-line{display:flex; gap:12px; padding:15px 16px; background:var(--inset); border-radius:var(--r); border:1px solid var(--line-2);}
+.coach-badge{flex:0 0 auto; width:30px; height:30px; border-radius:9px; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center;}
+.coach-tag{font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--accent); display:block; margin-bottom:3px;}
+.coach-line p{margin:0; font-size:13px; color:var(--ink); line-height:1.5;}
+
+.heat-callouts{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;}
+.callout{display:flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:var(--ink-2); background:var(--inset); border-radius:99px; padding:5px 11px 5px 9px;}
+.callout b{color:var(--ink); margin-left:1px;}
+.callout-dot{width:8px; height:8px; border-radius:50%;}
+.callout.tone-good .callout-dot{background:var(--good);}
+.callout.tone-bad .callout-dot{background:var(--bad);}
+.heat{display:flex; gap:3px; height:54px; align-items:flex-end;}
+.heat-cell{flex:1; border-radius:3px; min-height:10px; position:relative; transition:height .8s cubic-bezier(.22,1,.36,1);}
+.heat-cell.now{outline:2px solid var(--ink); outline-offset:1px;}
+.heat-cell.now::after{content:""; position:absolute; top:-7px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:3px solid transparent; border-right:3px solid transparent; border-top:4px solid var(--ink);}
+.heat-axis{display:flex; justify-content:space-between; margin-top:7px; font-size:10.5px; color:var(--ink-3); font-weight:500;}
+
+.donut-row{display:flex; justify-content:space-around; align-items:flex-start; gap:12px; margin:6px 0 4px;}
+.donut{position:relative; display:flex; flex-direction:column; align-items:center;}
+.donut-mid{position:absolute; top:0; left:0; right:0; bottom:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none;}
+.donut-val{font-family:var(--serif); font-weight:600; font-size:20px; color:var(--ink); line-height:1;}
+.donut-lbl{font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-3); margin-top:2px;}
+.donut-sub{font-size:11.5px; color:var(--ink-2); margin-top:8px; font-weight:500;}
+
+.cbar{display:flex; align-items:center; gap:11px; margin-bottom:10px;}
+.cbar-name{width:42px; font-size:12.5px; font-weight:600; color:var(--ink-2);}
+.cbar-track{flex:1; height:14px; background:var(--inset); border-radius:99px; overflow:hidden;}
+.cbar-fill{display:block; height:100%; background:var(--accent); border-radius:99px; transition:width 1s cubic-bezier(.22,1,.36,1);}
+.cbar-fill-2{background:color-mix(in srgb,var(--accent) 55%, var(--ink-3));}
+.cbar-val{width:36px; text-align:right; font-family:var(--serif); font-weight:600; font-size:16px;}
+
+.lose-list{display:flex; flex-direction:column; gap:10px;}
+.lose-row{display:flex; align-items:center; gap:11px;}
+.lose-k{width:80px; font-size:12.5px; color:var(--ink-2); font-weight:500;}
+.lose-track{flex:1; height:10px; background:var(--inset); border-radius:99px; overflow:hidden;}
+.lose-fill{display:block; height:100%; background:color-mix(in srgb,var(--ink) 30%, var(--inset)); border-radius:99px;}
+.lose-row.is-ctrl .lose-k{color:var(--bad); font-weight:700;}
+.lose-row.is-ctrl .lose-fill{background:var(--bad);}
+.lose-v{width:34px; text-align:right; font-size:13px; font-weight:700; color:var(--ink);}
+
+.tilt{display:flex; flex-wrap:wrap; gap:5px;}
+.tilt-cell{width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff;}
+.tilt-cell.tone-good{background:color-mix(in srgb,var(--good) 75%, var(--surface));}
+.tilt-cell.tone-bad{background:color-mix(in srgb,var(--bad) 70%, var(--surface));}
+.tilt-cell.tilt-ab{background:var(--bad); box-shadow:0 0 0 2px color-mix(in srgb,var(--bad) 35%, transparent);}
+.tilt-legend{display:flex; gap:15px; margin-top:12px; font-size:11.5px; color:var(--ink-2); font-weight:500;}
+.tilt-legend span{display:flex; align-items:center; gap:6px;}
+.tilt-legend .lg{width:14px; height:14px; border-radius:4px; display:inline-flex; align-items:center; justify-content:center; font-size:9px; color:#fff;}
+.tilt-legend .lg.good{background:color-mix(in srgb,var(--good) 75%, var(--surface));}
+.tilt-legend .lg.bad{background:color-mix(in srgb,var(--bad) 70%, var(--surface));}
+.tilt-legend .lg.ab{background:var(--bad);}
+
+.track-card{padding:18px 18px 16px;}
+.phase-row{display:flex; gap:6px; margin-bottom:30px;}
+.phase-chip{flex:1; text-align:center; font-size:10.5px; font-weight:600; letter-spacing:.01em; color:var(--ink-3); padding:5px 4px; border-radius:99px; background:var(--inset);}
+.phase-chip.is-active{color:#fff; background:var(--accent);}
+.track{position:relative; height:74px; margin-top:6px;}
+.track-line{position:absolute; top:9px; left:6%; right:6%; height:3px; border-radius:99px; background:var(--line);}
+.track-fill{position:absolute; top:9px; height:3px; border-radius:99px; background:color-mix(in srgb,var(--accent) 38%, var(--line));}
+.node{position:absolute; top:0; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; width:60px;}
+.node-dot{width:14px; height:14px; border-radius:50%; background:var(--surface); border:3px solid var(--ink-3); margin-top:2px;}
+.node-now .node-dot{border-color:var(--accent); background:var(--accent); box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 18%, transparent);}
+.node-peak .node-dot{border-color:color-mix(in srgb,var(--accent) 60%, var(--ink-3));}
+.node-goal .node-dot{border-color:var(--good); border-style:double; border-width:4px;}
+.node-v{font-family:var(--serif); font-weight:600; font-size:16px; margin-top:9px; letter-spacing:-.01em;}
+.node-lbl{font-size:10px; font-weight:600; color:var(--ink-3); letter-spacing:.03em; text-transform:uppercase; margin-top:1px;}
+.node-now .node-lbl{color:var(--accent);}
+.node-you{position:absolute; top:-22px; font-size:10px; font-weight:700; color:#fff; background:var(--accent); padding:2px 8px; border-radius:99px; letter-spacing:.04em;}
+.node-you::after{content:""; position:absolute; left:50%; bottom:-4px; transform:translateX(-50%); border:4px solid transparent; border-top-color:var(--accent); border-bottom:0;}
+.track-foot{font-size:12.5px; color:var(--ink-2); margin:18px 0 0; line-height:1.45; text-align:center;}
+
+.sc-head{display:flex; align-items:center; justify-content:space-between; padding:8px 4px 0;}
+.sc-head .card-label{margin:0;}
+.sc-range{font-size:11.5px; color:var(--ink-3); font-weight:500;}
+.sc-card{padding:14px 16px;}
+.sc-top{display:flex; justify-content:space-between; align-items:baseline;}
+.sc-k{font-size:13.5px; font-weight:600;}
+.sc-target{font-size:11.5px; color:var(--ink-3); font-weight:500;}
+.sc-mid{display:flex; align-items:center; gap:13px; margin-top:6px;}
+.sc-v{font-family:var(--serif); font-weight:600; font-size:30px; letter-spacing:-.02em; min-width:54px;}
+.sc-bar{flex:1; height:8px; background:var(--inset); border-radius:99px; overflow:hidden;}
+.sc-bar span{display:block; height:100%; border-radius:99px;}
+.sc-bar.tone-bad span{background:var(--bad);} .sc-bar.tone-warn span{background:var(--warn);} .sc-bar.tone-good span{background:var(--good);}
+.sc-note{font-size:12px; color:var(--ink-2); margin:9px 0 0;}
+.climb-foot{display:flex; align-items:center; gap:9px; padding:13px 16px; margin-top:2px; font-size:12.5px; color:var(--ink-2); background:var(--good-tint); border-radius:var(--r-sm);}
+.climb-foot svg{color:var(--good); flex:0 0 auto;}
+.climb-foot b{color:var(--ink);}
+
+.coach-chip{display:inline-flex; align-items:center; gap:8px; align-self:flex-start; padding:7px 14px; background:var(--surface); border:1px solid var(--line); border-radius:99px; box-shadow:var(--sh-sm); font-size:12.5px;}
+.coach-chip-phase{font-weight:600;}
+.coach-chip-arrow{display:flex; color:var(--ink-3);}
+.coach-chip-goal{font-family:var(--serif); font-weight:600; color:var(--accent);}
+.prompt-label{font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); margin:4px 2px 0;}
+.prompts{display:flex; flex-direction:column; gap:9px;}
+.prompt{display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; text-align:left; cursor:pointer;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r-sm); padding:13px 15px; font-family:var(--sans); font-size:13.5px; font-weight:500; color:var(--ink); box-shadow:var(--sh-sm); transition:border-color .15s, transform .12s;}
+.prompt svg{color:var(--ink-3); flex:0 0 auto;}
+.prompt:hover{border-color:color-mix(in srgb,var(--accent) 50%, var(--line)); transform:translateY(-1px);}
+.prompt.is-picked{border-color:var(--accent); background:var(--accent-tint);}
+.prompt.is-picked svg{color:var(--accent);}
+.prompt-q{line-height:1.3;}
+
+.ask{display:flex; flex-direction:column; gap:11px; margin-top:4px;}
+.bubble-user{align-self:flex-end; background:var(--accent); color:#fff; padding:10px 15px; border-radius:16px 16px 4px 16px; font-size:13.5px; font-weight:500; max-width:80%;}
+.answer{background:var(--surface); border:1px solid var(--line); border-radius:16px 16px 16px 4px; padding:15px 16px; box-shadow:var(--sh-sm);}
+.answer-head{display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--accent); margin-bottom:9px;}
+.answer-badge{width:24px; height:24px; border-radius:7px; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center;}
+.answer p{margin:0 0 9px; font-size:13.5px; line-height:1.5; color:var(--ink); white-space:pre-wrap;}
+.answer p:last-child{margin-bottom:0;}
+.sources{display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:13px; padding-top:12px; border-top:1px solid var(--line-2);}
+.sources-lbl{font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3);}
+.src-chip{font-size:11px; font-weight:600; color:var(--ink-2); background:var(--inset); border-radius:99px; padding:4px 10px;}
+.ask-bar{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:2px; padding:8px 8px 8px 16px; background:var(--surface); border:1px solid var(--line); border-radius:99px;}
+.ask-bar input{flex:1; border:0; background:none; outline:none; font-family:var(--sans); font-size:13px; color:var(--ink);}
+.ask-bar input::placeholder{color:var(--ink-3);}
+.ask-send{width:34px; height:34px; border:0; cursor:pointer; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; flex:0 0 auto;}
+.ask-send:disabled{opacity:.5; cursor:default;}
+
+.loading,.errbox{max-width:404px; margin:60px auto; text-align:center; color:var(--ink-2); font-size:14px; padding:0 20px;}
+.errbox b{color:var(--bad);}
+.spin{width:26px;height:26px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);margin:0 auto 14px;animation:sp 1s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.refresh{background:none;border:0;cursor:pointer;color:var(--ink-3);font-family:var(--sans);font-size:11px;font-weight:600;}
+
+/* ---------- header refresh button ---------- */
+.hdr-refresh{display:flex; align-items:center; gap:7px; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:8px 14px; cursor:pointer; font-family:var(--sans); font-size:12px; font-weight:600; color:var(--ink-2); box-shadow:var(--sh-sm); transition:border-color .15s, color .15s;}
+.hdr-refresh:hover{border-color:color-mix(in srgb,var(--accent) 45%, var(--line)); color:var(--accent);}
+.hdr-refresh:disabled{opacity:.6; cursor:default;}
+.hdr-refresh svg{transition:transform .6s ease;}
+.hdr-refresh.spinning svg{animation:sp 1s linear infinite;}
+.hdr-actions{display:flex; align-items:center; gap:10px;}
+
+/* ---------- lock screen ---------- */
+.lock-wrap{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+.lock{
+  width:min(380px,92vw); background:var(--paper); border:1px solid var(--line); border-radius:28px;
+  box-shadow:var(--sh); padding:38px 32px 30px; text-align:center; position:relative; overflow:hidden;
+}
+.lock::before{content:""; position:absolute; inset:0 0 auto 0; height:4px; background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 40%, var(--warn)));}
+.lock-mark{font-family:var(--serif); font-weight:600; font-size:40px; letter-spacing:-.02em; color:var(--ink); margin-bottom:4px;}
+.lock-piece{font-size:34px; line-height:1; margin-bottom:14px;}
+.lock-sub{font-size:13.5px; color:var(--ink-2); margin:0 0 24px; line-height:1.5;}
+.lock-sub b{color:var(--accent); font-weight:600;}
+.lock-field{display:flex; align-items:center; gap:8px; background:var(--surface); border:1.5px solid var(--line); border-radius:14px; padding:4px 4px 4px 16px; transition:border-color .2s;}
+.lock-field.is-error{border-color:var(--bad); animation:shake .4s;}
+.lock-field:focus-within{border-color:var(--accent);}
+.lock-field input{flex:1; border:0; background:none; outline:none; font-family:var(--sans); font-size:15px; color:var(--ink); padding:11px 0; letter-spacing:.04em;}
+.lock-field input::placeholder{color:var(--ink-3); letter-spacing:0;}
+.lock-go{width:42px; height:42px; flex:0 0 auto; border:0; cursor:pointer; border-radius:11px; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center;}
+.lock-go:disabled{opacity:.5; cursor:default;}
+.lock-err{font-size:12.5px; color:var(--bad); font-weight:600; margin:12px 0 0; min-height:16px;}
+.lock-foot{font-size:11px; color:var(--ink-3); margin:22px 0 0; letter-spacing:.02em;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* ---------- play-now tilt guard ---------- */
+.playnow{border-radius:var(--r); border:1px solid var(--line); padding:16px 16px 15px; background:var(--surface);}
+.playnow.go{background:var(--good-tint); border-color:color-mix(in srgb,var(--good) 28%, var(--line));}
+.playnow.caution{background:var(--warn-tint); border-color:color-mix(in srgb,var(--warn) 30%, var(--line));}
+.playnow.stop{background:var(--bad-tint); border-color:color-mix(in srgb,var(--bad) 32%, var(--line));}
+.pn-top{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.pn-q{font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3);}
+.pn-verdict{font-family:var(--serif); font-weight:600; font-size:27px; letter-spacing:-.01em; line-height:1; display:flex; align-items:center; gap:9px;}
+.playnow.go .pn-verdict{color:var(--good);} .playnow.caution .pn-verdict{color:var(--warn);} .playnow.stop .pn-verdict{color:var(--bad);}
+.pn-dot{width:13px; height:13px; border-radius:50%;}
+.playnow.go .pn-dot{background:var(--good);} .playnow.caution .pn-dot{background:var(--warn);} .playnow.stop .pn-dot{background:var(--bad);}
+.pn-reasons{margin:12px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px;}
+.pn-reasons li{font-size:12.5px; color:var(--ink-2); line-height:1.45; padding-left:14px; position:relative;}
+.pn-reasons li::before{content:""; position:absolute; left:0; top:7px; width:5px; height:5px; border-radius:50%; background:var(--ink-3);}
+
+/* ---------- streak strip ---------- */
+.streak{display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:var(--r-sm); background:var(--good-tint); border:1px solid color-mix(in srgb,var(--good) 22%, var(--line)); margin-top:11px;}
+.streak.cold{background:var(--inset); border-color:var(--line-2);}
+.streak-flame{flex:0 0 auto; width:26px; height:26px; border-radius:8px; background:var(--good); color:#fff; display:flex; align-items:center; justify-content:center;}
+.streak.cold .streak-flame{background:var(--ink-3);}
+.streak-n{font-family:var(--serif); font-weight:600; font-size:19px; color:var(--ink);}
+.streak-txt{font-size:12px; color:var(--ink-2); line-height:1.35;}
+.streak-best{margin-left:auto; font-size:11px; color:var(--ink-3); font-weight:600; text-align:right; white-space:nowrap;}
+
+/* ---------- yesterday card ---------- */
+.yday-grid{display:flex; gap:10px;}
+.yday-cell{flex:1; background:var(--inset); border-radius:var(--r-sm); padding:11px 12px; text-align:center;}
+.yday-v{font-family:var(--serif); font-weight:600; font-size:22px; letter-spacing:-.01em; line-height:1;}
+.yday-l{font-size:10.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-3); margin-top:5px;}
+.yday-chk{display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; color:#fff;}
+.yday-chk.ok{background:var(--good);} .yday-chk.no{background:var(--bad);}
+
+/* ---------- trend / sparkline ---------- */
+.trend-grid{display:flex; flex-direction:column; gap:16px;}
+.trend-blk .trend-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px;}
+.trend-name{font-size:12px; font-weight:600; color:var(--ink-2);}
+.trend-now{font-family:var(--serif); font-weight:600; font-size:16px;}
+.spark{width:100%; height:46px; display:block;}
+.bars{display:flex; align-items:flex-end; gap:2px; height:40px;}
+.bar{flex:1; min-height:2px; border-radius:2px 2px 0 0; background:var(--good);}
+.bar.has{background:var(--bad);}
+.trend-axis{display:flex; justify-content:space-between; margin-top:6px; font-size:10px; color:var(--ink-3); font-weight:500;}
+
+/* ---------- repertoire (openings) ---------- */
+.rep-side{font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3); margin:2px 0 8px;}
+.rep-side + .rep-side{margin-top:14px;}
+.rep-row{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+.rep-name{flex:0 0 124px; font-size:12.5px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.rep-track{flex:1; height:10px; background:var(--inset); border-radius:99px; overflow:hidden;}
+.rep-fill{display:block; height:100%; border-radius:99px;}
+.rep-meta{flex:0 0 64px; text-align:right; font-size:11.5px; color:var(--ink-2);}
+.rep-meta b{font-family:var(--serif); font-size:14px; color:var(--ink);}
+
+/* ---------- tilt trigger ---------- */
+.tt-head{font-family:var(--serif); font-weight:500; font-size:21px; line-height:1.2; letter-spacing:-.01em; margin:0 0 12px;}
+.tt-head b{color:var(--bad);}
+
+/* ---------- puzzle bridge / latent skill ---------- */
+.gap-row{display:flex; align-items:center; gap:11px; margin-bottom:10px;}
+.gap-name{width:54px; font-size:12.5px; font-weight:600; color:var(--ink-2);}
+.gap-track{flex:1; height:14px; background:var(--inset); border-radius:99px; overflow:hidden;}
+.gap-fill{display:block; height:100%; border-radius:99px; transition:width 1s cubic-bezier(.22,1,.36,1);}
+.gap-val{width:46px; text-align:right; font-family:var(--serif); font-weight:600; font-size:16px;}
+.gap-callout{font-family:var(--serif); font-weight:600; font-size:26px; color:var(--accent); letter-spacing:-.02em;}
+
+/* ---------- phase progress ---------- */
+.pp-bar{height:8px; border-radius:99px; background:var(--inset); overflow:hidden; margin-top:18px;}
+.pp-bar span{display:block; height:100%; background:var(--accent); border-radius:99px; transition:width 1s cubic-bezier(.22,1,.36,1);}
+.pp-meta{display:flex; justify-content:space-between; font-size:11px; color:var(--ink-3); font-weight:600; margin-top:6px;}
+
+/* ---------- game of the day ---------- */
+.gd-top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
+.gd-tag{font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; border-radius:99px; padding:4px 10px;}
+.gd-tag.abandon{background:var(--bad); color:#fff;}
+.gd-tag.loss{background:var(--bad-tint); color:var(--bad);}
+.gd-tag.win{background:var(--good-tint); color:var(--good);}
+.gd-facts{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:11px;}
+.gd-fact{font-size:11.5px; font-weight:600; color:var(--ink-2); background:var(--inset); border-radius:99px; padding:4px 10px;}
+.gd-fact b{color:var(--ink);}
+.gd-btn{display:inline-flex; align-items:center; gap:7px; border:1px solid color-mix(in srgb,var(--accent) 40%, var(--line)); background:var(--accent-tint); color:var(--accent); border-radius:99px; padding:8px 14px; font-family:var(--sans); font-size:12.5px; font-weight:700; cursor:pointer;}
+.gd-btn:disabled{opacity:.55; cursor:default;}
+.gd-take{margin:11px 0 0; padding:12px 14px; background:var(--inset); border-radius:var(--r-sm); font-size:13px; line-height:1.5; color:var(--ink); white-space:pre-wrap;}
+
+/* ---------- streak milestone ---------- */
+.streak-next{font-size:11px; color:var(--ink-3); font-weight:600;}
+.streak.milestone{background:var(--accent-tint); border-color:color-mix(in srgb,var(--accent) 35%, var(--line));}
+.streak.milestone .streak-flame{background:var(--accent);}
+
+/* ---------- iOS standalone (home-screen app) safe areas ---------- */
+@media (display-mode:standalone){
+  .app-header{padding-top:calc(env(safe-area-inset-top) + 18px);}
+  .stage{padding-bottom:calc(env(safe-area-inset-bottom) + 24px);}
+  .phone{height:auto; min-height:calc(100vh - 150px);}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+/* ---------- color scale ---------- */
+function hexToRgb(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+function rgbToHex(r){return '#'+r.map(x=>Math.round(x).toString(16).padStart(2,'0')).join('');}
+function lerp(a,b,t){return a+(b-a)*t;}
+function lerpHex(c1,c2,t){const a=hexToRgb(c1),b=hexToRgb(c2);return rgbToHex([lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t)]);}
+function rateColor(p){const lo=0.33,mid=0.52,hi=0.68;
+  if(p<=lo)return"#BC6E5E";
+  if(p<=mid)return lerpHex("#BC6E5E","#CBA24E",(p-lo)/(mid-lo));
+  if(p<=hi)return lerpHex("#CBA24E","#6F8F6A",(p-mid)/(hi-mid));
+  return"#6F8F6A";}
+
+/* ---------- count-up ---------- */
+function useCountUp(target,{duration=900,delay=0,decimals=0}={}){
+  const [val,setVal]=useState(target);
+  useEffect(()=>{
+    const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduce||document.hidden){setVal(target);return;}
+    setVal(0); let raf,start,done=false;
+    const finish=()=>{if(!done){done=true;setVal(target);}};
+    const t=setTimeout(()=>{
+      const step=(now)=>{if(start==null)start=now;const p=Math.min(1,(now-start)/duration);
+        setVal(target*(1-Math.pow(1-p,3)));if(p<1)raf=requestAnimationFrame(step);else finish();};
+      raf=requestAnimationFrame(step);
+    },delay);
+    const safety=setTimeout(finish,delay+duration+250);
+    return()=>{clearTimeout(t);clearTimeout(safety);cancelAnimationFrame(raf);};
+  },[target,duration,delay,decimals]);
+  return decimals?val.toFixed(decimals):Math.round(val);
+}
+function CountUp({value,decimals=0,delay=0,duration=900,suffix=""}){
+  const v=useCountUp(value,{decimals,delay,duration});
+  return <span>{v}{suffix}</span>;
+}
+
+/* ---------- icons ---------- */
+const I={
+  today:(p)=>(<svg viewBox="0 0 24 24" {...p}><path d="M4 11.5 12 5l8 6.5"/><path d="M6 10.5V19h12v-8.5"/><path d="M10 19v-4.5h4V19"/></svg>),
+  patterns:(p)=>(<svg viewBox="0 0 24 24" {...p}><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-4"/><path d="M12 16V8"/><path d="M16 16v-6"/></svg>),
+  climb:(p)=>(<svg viewBox="0 0 24 24" {...p}><path d="M3 20 10 7l4 6 2-3 5 10z"/></svg>),
+  wizard:(p)=>(<svg viewBox="0 0 24 24" {...p}><path d="M12 4.5 13.4 9 18 10.4 13.4 11.8 12 16.3 10.6 11.8 6 10.4 10.6 9z"/><path d="M18 16.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></svg>),
+  spark:(p)=>(<svg viewBox="0 0 24 24" {...p}><path d="M12 3.5 13.7 9 19 10.5 13.7 12 12 17.5 10.3 12 5 10.5 10.3 9z"/></svg>),
+  arrow:(p)=>(<svg viewBox="0 0 24 24" {...p}><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>),
+  down:(p)=>(<svg viewBox="0 0 24 24" {...p}><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></svg>),
+  up:(p)=>(<svg viewBox="0 0 24 24" {...p}><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>),
+  flag:(p)=>(<svg viewBox="0 0 24 24" {...p}><path d="M6 21V4"/><path d="M6 5h11l-2 3 2 3H6"/></svg>),
+  check:(p)=>(<svg viewBox="0 0 24 24" {...p}><path d="M5 12.5 10 17l9-10"/></svg>),
+  refresh:(p)=>(<svg viewBox="0 0 24 24" {...p}><path d="M20 11a8 8 0 1 0-.6 4"/><path d="M20 5v6h-6"/></svg>),
+};
+function Icon({name,size=22,stroke=1.7,...rest}){const F=I[name];if(!F)return null;
+  return F({width:size,height:size,fill:"none",stroke:"currentColor",strokeWidth:stroke,strokeLinecap:"round",strokeLinejoin:"round",...rest});}
+
+function Dot({tone="good",size=9}){return <span className={"dot tone-"+tone} style={{width:size,height:size}}/>;}
+function Pip({result}){const tone=result==="W"?"good":"bad";return <span className={"pip tone-"+tone}>{result}</span>;}
+function ScreenTitle({title,sub}){return(<header className="scr-head"><h2 className="scr-title">{title}</h2>{sub&&<p className="scr-sub">{sub}</p>}</header>);}
+
+// smooth catmull-rom -> cubic bezier path through points
+function smoothPath(P){
+  if(P.length<2) return "";
+  if(P.length===2) return `M${P[0][0]},${P[0][1]} L${P[1][0]},${P[1][1]}`;
+  let d=`M${P[0][0]},${P[0][1]}`;
+  for(let i=0;i<P.length-1;i++){
+    const p0=P[i-1]||P[i], p1=P[i], p2=P[i+1], p3=P[i+2]||P[i+1];
+    const c1x=p1[0]+(p2[0]-p0[0])/6, c1y=p1[1]+(p2[1]-p0[1])/6;
+    const c2x=p2[0]-(p3[0]-p1[0])/6, c2y=p2[1]-(p3[1]-p1[1])/6;
+    d+=` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+let _gid=0;
+function Sparkline({values,color="var(--accent)",h=46}){
+  const vals=values.filter(v=>v!=null);
+  if(vals.length<2)return <div className="spark"/>;
+  const min=Math.min(...vals),max=Math.max(...vals),rng=(max-min)||1;
+  const w=100,pad=4;
+  const id=React.useMemo(()=>"sg"+(_gid++),[]);
+  const P=values.map((v,i)=>v==null?null:[
+    pad+(i/(values.length-1))*(w-2*pad),
+    h-pad-((v-min)/rng)*(h-2*pad)
+  ]).filter(Boolean);
+  const line=smoothPath(P);
+  const area=line+` L${P[P.length-1][0].toFixed(1)},${h} L${P[0][0].toFixed(1)},${h} Z`;
+  const last=P[P.length-1];
+  return(
+    <svg className="spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.32"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${id})`} stroke="none"/>
+      <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
+      <circle cx={last[0]} cy={last[1]} r="3.4" fill={color} opacity="0.18"/>
+      <circle cx={last[0]} cy={last[1]} r="2.2" fill={color}/>
+    </svg>
+  );
+}
+
+// donut ring for a single percentage
+function Donut({pct,color="var(--accent)",size=88,stroke=10,label,sub}){
+  const r=(size-stroke)/2, c=2*Math.PI*r, off=c*(1-pct/100);
+  return(
+    <div className="donut" style={{width:size,height:size}}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--inset)" strokeWidth={stroke}/>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off}
+          transform={`rotate(-90 ${size/2} ${size/2})`} style={{transition:"stroke-dashoffset 1.1s cubic-bezier(.22,1,.36,1)"}}/>
+      </svg>
+      <div className="donut-mid">
+        <span className="donut-val"><CountUp value={pct} delay={150} suffix="%"/></span>
+        {label&&<span className="donut-lbl">{label}</span>}
+      </div>
+      {sub&&<span className="donut-sub">{sub}</span>}
+    </div>
+  );
+}
+
+/* ========== TODAY ========== */
+function TodayScreen({d}){
+  const t=d.today;
+  const now=new Date();
+  const dateStr=now.toLocaleDateString(undefined,{weekday:'short'})+' · '+now.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+  const tilting=d.last5.length>=2 && d.last5.slice(-2).every(x=>x==="L");
+  const lateNight=now.getHours()>=23||now.getHours()<5;
+  const warn=tilting||lateNight||t.abandons>0;
+  const worst=d.worstCallout;
+  return(
+    <React.Fragment>
+      <div className="scr-topbar">
+        <span className="scr-date">{dateStr}</span>
+        <span className="scr-rating">{d.rating} <em>blitz</em></span>
+      </div>
+      <div className={"banner tone-"+(warn?"warn":"good")}>
+        <div className="banner-row"><Dot tone={warn?"warn":"good"} size={11}/><span className="banner-kicker">{warn?"Heads up":"Good window"}</span></div>
+        <h3 className="banner-head">{warn?"Consider wrapping up for now.":"You're in a good window."}</h3>
+        <p className="banner-body">
+          {tilting?<span>Two losses back-to-back. The streak — not the clock — is your abandon trigger. Step away before a third.</span>
+            :lateNight?<span>It's late — historically your weakest window{worst?<span>, where you win just <b>{worst.pct}%</b></span>:null}. Sharper tomorrow morning.</span>
+            :t.abandons>0?<span>You've abandoned <b>{t.abandons}</b> today. Resign cleanly from here — keep your rating honest.</span>
+            :<span>No tilt signals right now. Steady games, watch for back-to-back losses, and stop after two.</span>}
+        </p>
+      </div>
+      {/* should I play right now? — tilt guard */}
+      {(()=>{const pn=d.playNow;const verdict={go:"Go ahead",caution:"Be careful",stop:"Stop now"}[pn.recommend];
+        return(
+        <div className={"playnow "+pn.recommend}>
+          <div className="pn-top">
+            <span className="pn-q">Should I play right now?</span>
+          </div>
+          <div className="pn-verdict" style={{marginTop:8}}><span className="pn-dot"/>{verdict}</div>
+          <ul className="pn-reasons">{pn.reasons.map((r,i)=><li key={i}>{r}</li>)}</ul>
+        </div>);})()}
+
+      <div className="card">
+        <div className="card-label">Today</div>
+        <div className="record">
+          <span className="record-num"><CountUp value={t.wins} delay={120}/></span>
+          <span className="record-dash">–</span>
+          <span className="record-num"><CountUp value={t.losses} delay={120}/></span>
+          <span className={"record-delta tone-"+(t.delta<0?"bad":"good")}><Icon name={t.delta<0?"down":"up"} size={15} stroke={2}/>{Math.abs(t.delta)}</span>
+        </div>
+        <div className="record-meta">
+          <span>{t.wins+t.losses} games · net {t.wins-t.losses>=0?"+":""}{t.wins-t.losses}</span>
+          <span className="record-rating">{d.rating}<i className={t.delta<0?"tone-bad":"tone-good-text"}>{t.delta>=0?"+":""}{t.delta}</i></span>
+        </div>
+        <div className="pips-row">
+          <span className="pips-label">Last 5</span>
+          <div className="pips">{d.last5.map((r,i)=><Pip key={i} result={r}/>)}</div>
+        </div>
+      </div>
+      <div className="card card-key">
+        <div className="key-top">
+          <div><div className="card-label">Abandons today</div><div className="key-num"><CountUp value={t.abandons} delay={260}/></div></div>
+          <div className="key-goal"><span className="key-goal-num">0</span><span className="key-goal-lbl">your goal</span></div>
+        </div>
+        <div className="key-bar"><span style={{width:t.abandons===0?"100%":"0%"}}/></div>
+        <p className="key-note">{t.abandons===0?"Clean so far. Abandoning hands free rating to your opponent — keeping this at zero is the single most fixable leak you have.":"Each abandon hands free rating to your opponent. When the urge hits, resign instead — it keeps the number honest."}</p>
+        <div className={"streak"+(d.streak.cleanDays===0?" cold":"")+(d.streak.milestoneHit?" milestone":"")}>
+          <div className="streak-flame"><Icon name="flag" size={14} stroke={1.9}/></div>
+          <div>
+            <span className="streak-n">{d.streak.cleanDays}</span> <span className="streak-txt">{d.streak.cleanDays===1?"day":"days"} clean</span>
+            <div className="streak-txt">
+              {d.streak.milestoneHit?`Milestone hit — ${d.streak.milestoneHit} clean days. That's the climb.`
+                :d.streak.cleanDays===0?"Today broke the streak. Reset starts tomorrow."
+                :`consecutive days with zero abandons`}
+            </div>
+            {d.streak.cleanDays>0&&!d.streak.milestoneHit&&<div className="streak-next">next milestone: {d.streak.nextMilestone}d{d.streak.cleanDays>=d.streak.bestCleanDays?" · this IS your best — extend it":""}</div>}
+          </div>
+          <span className="streak-best">best<br/>{d.streak.bestCleanDays}d</span>
+        </div>
+      </div>
+
+      {/* yesterday's grade */}
+      {d.yesterday&&(
+      <div className="card">
+        <div className="card-label">Yesterday</div>
+        <div className="yday-grid">
+          <div className="yday-cell"><div className="yday-v">{d.yesterday.wins}–{d.yesterday.losses}</div><div className="yday-l">Record</div></div>
+          <div className="yday-cell"><div className="yday-v tone-bad" style={{color:d.yesterday.abandons?"var(--bad)":"var(--ink)"}}>{d.yesterday.abandons}</div><div className="yday-l">Abandons</div></div>
+          <div className="yday-cell"><div className="yday-v" style={{color:d.yesterday.delta<0?"var(--bad)":"var(--good)"}}>{d.yesterday.delta>=0?"+":""}{d.yesterday.delta}</div><div className="yday-l">Rating</div></div>
+          <div className="yday-cell"><div className="yday-v"><span className={"yday-chk "+(d.yesterday.twoLossOk?"ok":"no")}><Icon name={d.yesterday.twoLossOk?"check":"down"} size={13} stroke={2.4}/></span></div><div className="yday-l">2-loss rule</div></div>
+        </div>
+        <p className="card-foot">{d.yesterday.abandons===0&&d.yesterday.twoLossOk?"Clean day — that's exactly the pattern that climbs.":d.yesterday.abandons>0?`${d.yesterday.abandons} abandon${d.yesterday.abandons>1?"s":""} cost you free rating. Today's the rematch.`:"You broke the two-loss rule. Cap it at two today."}</p>
+      </div>)}
+      {/* game of the day */}
+      {d.gameOfDay&&<GameOfDay g={d.gameOfDay}/>}
+
+      <div className="coach-line">
+        <div className="coach-badge"><Icon name="spark" size={15} stroke={1.8}/></div>
+        <div><span className="coach-tag">Coach</span>
+        <p>When the urge to rage-quit hits, resign cleanly instead. It keeps your rating honest and your head clear for the morning window — where you actually win.</p></div>
+      </div>
+    </React.Fragment>
+  );
+}
+
+/* ---------- game of the day card ---------- */
+function GameOfDay({g}){
+  const [take,setTake]=useState(null);
+  const [busy,setBusy]=useState(false);
+  const tagLabel={abandon:"Abandoned",loss:"Costly loss",win:"Best win"}[g.kind];
+  async function getTake(){
+    if(busy)return; setBusy(true);
+    try{
+      const res=await fetch("/api/wizard",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:"Give me my game-of-the-day takeaway."})});
+      const j=await res.json();
+      setTake(j.error?("Couldn't reach the coach: "+j.error):j.answer);
+    }catch(e){setTake("Couldn't reach the coach: "+e.message);}
+    finally{setBusy(false);}
+  }
+  const fmtHr=(h)=>`${(h%12)||12}${h<12?"am":"pm"}`;
+  return(
+    <div className="card">
+      <div className="gd-top">
+        <span className="card-label" style={{margin:0}}>Game of the day · {g.when}</span>
+        <span className={"gd-tag "+g.kind}>{tagLabel}</span>
+      </div>
+      <div className="gd-facts">
+        <span className="gd-fact">as <b>{g.side==="white"?"White":"Black"}</b></span>
+        {g.opening&&<span className="gd-fact"><b>{g.opening}</b></span>}
+        <span className="gd-fact">opp <b>{g.oppRating}</b> ({g.oppDelta>=0?"+":""}{g.oppDelta})</span>
+        <span className="gd-fact">ended: <b>{g.result}</b></span>
+        {g.delta!==0&&<span className="gd-fact">rating <b style={{color:g.delta<0?"var(--bad)":"var(--good)"}}>{g.delta>=0?"+":""}{g.delta}</b></span>}
+        <span className="gd-fact">~<b>{fmtHr(g.hour)}</b></span>
+      </div>
+      {!take&&<button className="gd-btn" onClick={getTake} disabled={busy}>
+        <Icon name="spark" size={14} stroke={1.9}/>{busy?"Asking the coach…":"Coach take (3 sentences)"}
+      </button>}
+      {take&&<div className="gd-take">{take}</div>}
+    </div>
+  );
+}
+
+/* ========== PATTERNS ========== */
+function PatternsScreen({d}){
+  const labels={0:"12a",6:"6a",12:"12p",18:"6p"};
+  const nowHour=new Date().getHours();
+  const max=Math.max(...d.loseTypes.map(x=>x.v),1);
+  return(
+    <React.Fragment>
+      <ScreenTitle title="Patterns" sub="What the rating alone won't tell you."/>
+      <div className="card">
+        <div className="card-label">Win rate by hour</div>
+        <div className="heat-callouts">
+          {d.bestCallout&&<div className="callout tone-good"><span className="callout-dot"/>Best {d.bestCallout.label} <b>{d.bestCallout.pct}%</b></div>}
+          {d.worstCallout&&<div className="callout tone-bad"><span className="callout-dot"/>Worst {d.worstCallout.label} <b>{d.worstCallout.pct}%</b></div>}
+        </div>
+        <div className="heat">{d.hours.map((p,h)=>{const isNow=h===nowHour;return(
+          <div key={h} className={"heat-cell"+(isNow?" now":"")} style={{background:rateColor(p),height:(28+p*26)+"%"}} title={`${h}:00 · ${Math.round(p*100)}%`}/>
+        );})}</div>
+        <div className="heat-axis">{[0,6,12,18].map(h=><span key={h}>{labels[h]}</span>)}<span>12a</span></div>
+      </div>
+      <div className="card">
+        <div className="card-label">Win rate by color</div>
+        <div className="donut-row">
+          <Donut pct={d.whitePct} color="var(--accent)" label="White"/>
+          <Donut pct={d.blackPct} color="color-mix(in srgb,var(--accent) 55%, var(--ink-3))" label="Black"/>
+        </div>
+        <p className="card-foot">{d.whitePct>d.blackPct?<span>You're <b>+{d.whitePct-d.blackPct} points</b> stronger with White. Standardize one Black defense to close the gap.</span>:<span>Your colors are balanced — keep both repertoires tight.</span>}</p>
+      </div>
+      <div className="card">
+        <div className="card-label">How you lose</div>
+        <div className="lose-list">{d.loseTypes.map(x=>(
+          <div key={x.k} className={"lose-row"+(x.ctrl?" is-ctrl":"")}>
+            <span className="lose-k">{x.k}</span>
+            <div className="lose-track"><span className="lose-fill" style={{width:(x.v/max*100)+"%"}}/></div>
+            <span className="lose-v">{x.v}%</span>
+          </div>))}</div>
+        <p className="card-foot"><b className="tone-bad-text">{d.abandonPct}% you simply left.</b> That's rating handed away for free.</p>
+      </div>
+      {/* opening repertoire */}
+      {(d.openings?.white?.length||d.openings?.black?.length)?(
+      <div className="card">
+        <div className="card-label">Repertoire · win rate by opening</div>
+        {["white","black"].map(side=>{
+          const rows=(d.openings[side]||[]).slice(0,4);
+          if(!rows.length)return null;
+          return(
+          <React.Fragment key={side}>
+            <div className="rep-side">as {side}</div>
+            {rows.map(o=>(
+              <div key={o.name} className="rep-row">
+                <span className="rep-name" title={o.name}>{o.name}</span>
+                <div className="rep-track"><span className="rep-fill" style={{width:o.pct+"%",background:rateColor(o.rate)}}/></div>
+                <span className="rep-meta"><b>{o.pct}%</b> · {o.n}g</span>
+              </div>))}
+          </React.Fragment>);})}
+        <p className="card-foot">
+          {(()=>{const b=(d.openings.black||[]).filter(o=>o.n>=4).sort((a,b)=>b.rate-a.rate)[0];
+            return b?<span>Phase 2 prep: standardize ONE Black defense. Your data says <b>{b.name}</b> ({b.pct}% over {b.n} games) is the keeper — funnel everything else into it.</span>
+              :<span>Not enough Black games per opening yet — pick one defense vs e4 and one vs d4, then let the sample build.</span>;})()}
+        </p>
+      </div>):null}
+
+      {/* tilt trigger — abandon rate vs opponent strength */}
+      {d.tiltTrigger&&d.tiltTrigger.abandons>0&&(
+      <div className="card">
+        <div className="card-label">Your tilt trigger</div>
+        <h3 className="tt-head"><b>{d.tiltTrigger.vsHigherPct}%</b> of your abandons came against higher-rated opponents.</h3>
+        <div className="lose-list">{d.tiltTrigger.buckets.map(b=>(
+          <div key={b.key} className={"lose-row"+(b.key==="stronger"?" is-ctrl":"")}>
+            <span className="lose-k" style={{width:140}}>{b.label}</span>
+            <div className="lose-track"><span className="lose-fill" style={{width:Math.min(100,b.rate*4)+"%"}}/></div>
+            <span className="lose-v">{b.rate}%</span>
+          </div>))}</div>
+        <p className="card-foot">Abandon rate per bucket ({d.tiltTrigger.abandons} abandons in sample, {d.tiltTrigger.afterLossPct}% right after a loss). Losing to a stronger player is <b>data, not a verdict</b> — resign cleanly and it costs you almost nothing.</p>
+      </div>)}
+
+      {/* conversion leaks — draws that were probably wins */}
+      {d.conversions&&d.conversions.draws>0&&(
+      <div className="card">
+        <div className="card-label">Blown conversions</div>
+        <h3 className="tt-head"><b>{d.conversions.leaks}</b> of your {d.conversions.draws} draws look like wins you didn't finish{d.conversions.stalemates>0?<span> — <b>{d.conversions.stalemates}</b> by stalemate</span>:null}.</h3>
+        <div className="lose-list">{d.conversions.types.map(t=>(
+          <div key={t.k} className={"lose-row"+(t.leak?" is-ctrl":"")}>
+            <span className="lose-k" style={{width:130}}>{t.k}</span>
+            <div className="lose-track"><span className="lose-fill" style={{width:(t.v/Math.max(...d.conversions.types.map(x=>x.v),1)*100)+"%"}}/></div>
+            <span className="lose-v">{t.v}</span>
+          </div>))}</div>
+        <p className="card-foot">Stalemates and material-burn draws are half-points handed back from winning endgames. Phase 2 fix: <b>king + queen and king + rook mate drills</b> until they're automatic.</p>
+      </div>)}
+
+      <div className="card">
+        <div className="card-label">Tilt map · last {d.tilt.length} games</div>
+        <div className="tilt">{d.tilt.split("").map((c,i)=>{const ab=c==="a",win=c==="W";
+          return <span key={i} className={"tilt-cell "+(ab?"tilt-ab":win?"tone-good":"tone-bad")} title={ab?"Abandoned":win?"Win":"Loss"}>{ab?"✕":""}</span>;})}</div>
+        <div className="tilt-legend">
+          <span><i className="lg good"/>Win</span><span><i className="lg bad"/>Loss</span><span><i className="lg ab">✕</i>Abandon</span>
+        </div>
+        <p className="card-foot">Abandons cluster at the <b>tail of losing streaks</b>. The streak is the trigger — not the clock.</p>
+      </div>
+    </React.Fragment>
+  );
+}
+
+/* ========== CLIMB ========== */
+function ClimbScreen({d}){
+  const nodes=[
+    {v:d.rating,lbl:"Now",state:"now"},
+    {v:d.nextTarget>d.peak?d.nextTarget:(d.phaseIdx===0?650:d.nextTarget),lbl:"+"+Math.max(0,(d.phaseIdx===0?650:d.nextTarget)-d.rating),state:"next"},
+    {v:d.peak,lbl:"Peak",state:"peak"},
+    {v:d.goal,lbl:"Goal",state:"goal"},
+  ];
+  const phases=[{name:"Stabilize"},{name:"Reclaim peak"},{name:"Breakthrough"}];
+  const sc=d.scorecard;
+  const cards=[
+    {k:"Abandons",v:sc.abandons,unit:"",target:"goal 0",pct:sc.abandons===0?6:Math.min(100,sc.abandons*20),tone:sc.abandons===0?"good":"bad",note:sc.abandons===0?"Clean week so far — keep it at zero to clear Phase 1.":`${sc.abandons} this week — each one is free rating gone.`},
+    {k:"Two-loss rule",v:sc.twoLossPct,unit:"%",target:"goal 100%",pct:sc.twoLossPct,tone:sc.twoLossPct>=90?"good":sc.twoLossPct>=70?"warn":"bad",note:`You stopped on time in ${Math.round(sc.twoLossPct/100*sc.sessions)} of ${sc.sessions} sessions.`},
+    {k:"Good-hours play",v:sc.goodHoursPct,unit:"%",target:"goal 70%",pct:sc.goodHoursPct,tone:sc.goodHoursPct>=70?"good":sc.goodHoursPct>=40?"warn":"bad",note:"Share of games inside your strong 9 AM–1 PM window."},
+  ];
+  return(
+    <React.Fragment>
+      <ScreenTitle title="Climb" sub={`${d.rating} → ${d.goal.toLocaleString()}. One behavior at a time.`}/>
+      <div className="card track-card">
+        <div className="phase-row">{phases.map((p,i)=><span key={i} className={"phase-chip"+(i===d.phaseIdx?" is-active":"")}>{p.name}</span>)}</div>
+        <div className="track">
+          <div className="track-line"/>
+          <div className="track-fill" style={{left:"6%",width:(d.phaseIdx/3*88)+"%"}}/>
+          {nodes.map((n,i)=>{const left=6+(i/(nodes.length-1))*88;
+            return(<div key={i} className={"node node-"+n.state} style={{left:left+"%"}}>
+              {n.state==="now"&&<span className="node-you">You</span>}
+              <span className="node-dot"/><span className="node-v">{n.v.toLocaleString()}</span><span className="node-lbl">{n.lbl}</span>
+            </div>);})}
+        </div>
+        <p className="track-foot">You've stood at <b>{d.peak}</b> before — proof the ceiling is real. The next move is <b>{d.phaseIdx===0?650:d.nextTarget}</b>.</p>
+        <div className="pp-bar"><span style={{width:(d.phaseProgress||0)+"%"}}/></div>
+        <div className="pp-meta"><span>Phase {d.phaseIdx+1} progress</span><span>{d.phaseProgress||0}% to {d.nextTarget}</span></div>
+      </div>
+
+      {/* puzzle bridge — the rating you're owed */}
+      {d.puzzle&&(()=>{const gap=d.puzzle-d.rating; const maxR=Math.max(d.puzzle,d.goal);
+        return(
+        <div className="card">
+          <div className="card-label">Latent skill</div>
+          <div className="gap-row"><span className="gap-name">Blitz</span><div className="gap-track"><span className="gap-fill" style={{width:(d.rating/maxR*100)+"%",background:"var(--accent)"}}/></div><span className="gap-val">{d.rating}</span></div>
+          <div className="gap-row"><span className="gap-name">Puzzles</span><div className="gap-track"><span className="gap-fill" style={{width:(d.puzzle/maxR*100)+"%",background:"var(--good)"}}/></div><span className="gap-val">{d.puzzle}</span></div>
+          <p className="card-foot">Your tactics are rated <span className="gap-callout">+{gap}</span> above your blitz. The skill for {d.goal} is already in your hands — the gap is behavior, not ability. Daily puzzles keep the edge; the rules below cash it in.</p>
+        </div>);})()}
+
+      {/* 30-day trend — reconstructed from your archives */}
+      {d.history&&d.history.length>=2&&(()=>{
+        const hist=d.history; const ratings=hist.map(h=>h.endRating); const abds=hist.map(h=>h.abandons);
+        const maxAb=Math.max(...abds,1); const firstR=ratings.find(r=>r!=null); const lastR=[...ratings].reverse().find(r=>r!=null);
+        const totalAb=abds.reduce((a,b)=>a+b,0);
+        return(
+        <div className="card">
+          <div className="card-label">Last {hist.length} days</div>
+          <div className="trend-grid">
+            <div className="trend-blk">
+              <div className="trend-head"><span className="trend-name">Blitz rating</span><span className="trend-now" style={{color:lastR>=firstR?"var(--good)":"var(--bad)"}}>{lastR} <span style={{fontSize:11,color:"var(--ink-3)"}}>({lastR-firstR>=0?"+":""}{lastR-firstR})</span></span></div>
+              <Sparkline values={ratings} color={lastR>=firstR?"var(--good)":"var(--accent)"}/>
+            </div>
+            <div className="trend-blk">
+              <div className="trend-head"><span className="trend-name">Abandons per day</span><span className="trend-now">{totalAb} <span style={{fontSize:11,color:"var(--ink-3)"}}>total</span></span></div>
+              <div className="bars">{abds.map((a,i)=><div key={i} className={"bar"+(a>0?" has":"")} style={{height:(a===0?2:(8+a/maxAb*32))+"px"}} title={hist[i].label+": "+a+" abandons"}/>)}</div>
+              <div className="trend-axis"><span>{hist[0].label}</span><span>{hist[hist.length-1].label}</span></div>
+            </div>
+          </div>
+          <p className="card-foot">Green bars are clean days. The goal is a wall of green — and a rating line that turns up with it.</p>
+        </div>);})()}
+
+      <div className="sc-head"><span className="card-label">This week's behavior</span><span className="sc-range">last 7 days</span></div>
+      {cards.map(s=>(
+        <div key={s.k} className="card sc-card">
+          <div className="sc-top"><span className="sc-k">{s.k}</span><span className="sc-target">{s.target}</span></div>
+          <div className="sc-mid"><span className={"sc-v tone-"+s.tone+"-text"}><CountUp value={s.v} delay={200}/>{s.unit}</span>
+            <div className={"sc-bar tone-"+s.tone}><span style={{width:s.pct+"%"}}/></div></div>
+          <p className="sc-note">{s.note}</p>
+        </div>))}
+      <div className="climb-foot"><Icon name="flag" size={15} stroke={1.8}/><span>Hit <b>zero abandons</b> for one week to clear Phase 1.</span></div>
+    </React.Fragment>
+  );
+}
+
+/* ========== WIZARD ========== */
+function WizardScreen({d}){
+  const o=d.openings||{};
+  const prompts=[
+    "Write my weekly coach letter.",
+    o.black&&o.black[0] ? `Should I keep playing the ${o.black[0].name} as Black?` : "Which opening should I play as Black?",
+    o.worst&&o.worst[0] ? `Why am I losing with the ${o.worst[0].name}?` : "What should I fix to reach my next target?",
+    "Why do I lose more late at night?",
+    "When should I stop for the night?",
+  ];
+  const [thread,setThread]=useState([]);
+  const [input,setInput]=useState("");
+  const [busy,setBusy]=useState(false);
+  const endRef=useRef(null);
+  useEffect(()=>{endRef.current&&endRef.current.scrollIntoView({behavior:"smooth"});},[thread,busy]);
+
+  async function ask(q){
+    if(!q||busy)return;
+    setThread(t=>[...t,{role:"user",text:q}]);
+    setInput(""); setBusy(true);
+    try{
+      const res=await fetch("/api/wizard",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})});
+      const j=await res.json();
+      if(j.error)throw new Error(j.error);
+      setThread(t=>[...t,{role:"coach",text:j.answer,grounded:j.grounded,offline:j.offline}]);
+    }catch(e){
+      setThread(t=>[...t,{role:"coach",text:"Couldn't reach the coach: "+e.message,grounded:["error"]}]);
+    }finally{setBusy(false);}
+  }
+  const phaseName=["Stabilize","Reclaim peak","Breakthrough"][d.phaseIdx];
+  return(
+    <React.Fragment>
+      <ScreenTitle title="Wizard" sub="A coach that only speaks from your data."/>
+      <div className="coach-chip"><Dot tone="accent" size={9}/><span className="coach-chip-phase">Phase {d.phaseIdx+1} · {phaseName}</span>
+        <span className="coach-chip-arrow"><Icon name="arrow" size={14} stroke={2}/></span><span className="coach-chip-goal">{d.phaseIdx===0?650:d.nextTarget}</span></div>
+      {thread.length===0&&<React.Fragment>
+        <div className="prompt-label">Seeded from your last {d.sampleGames} games</div>
+        <div className="prompts">{prompts.map((p,i)=>(
+          <button key={i} className="prompt" onClick={()=>ask(p)}><span className="prompt-q">{p}</span><Icon name="arrow" size={16} stroke={1.8}/></button>))}</div>
+      </React.Fragment>}
+      <div className="ask">
+        {thread.map((m,i)=> m.role==="user"
+          ?<div key={i} className="bubble-user">{m.text}</div>
+          :<div key={i} className="answer">
+             <div className="answer-head"><span className="answer-badge"><Icon name="spark" size={14} stroke={1.9}/></span>Coach</div>
+             {m.text.split(/\n\n+/).map((para,j)=><p key={j}>{para}</p>)}
+             {m.grounded&&!m.offline&&<div className="sources"><span className="sources-lbl">Grounded in</span>{m.grounded.map((g,j)=><span key={j} className="src-chip">{g}</span>)}</div>}
+           </div>)}
+        {busy&&<div className="answer"><div className="answer-head"><span className="answer-badge"><Icon name="spark" size={14} stroke={1.9}/></span>Coach</div><p style={{color:"var(--ink-3)"}}>Thinking…</p></div>}
+        <div ref={endRef}/>
+      </div>
+      <form className="ask-bar" onSubmit={(e)=>{e.preventDefault();ask(input.trim());}}>
+        <input value={input} onChange={e=>setInput(e.target.value)} placeholder="Ask anything about your game…"/>
+        <button className="ask-send" type="submit" disabled={busy||!input.trim()}><Icon name="arrow" size={16} stroke={2}/></button>
+      </form>
+    </React.Fragment>
+  );
+}
+
+/* ========== LOCK SCREEN ========== */
+function Lock({onUnlock}){
+  const [pw,setPw]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState(false);
+  const ref=useRef(null);
+  useEffect(()=>{ref.current&&ref.current.focus();},[]);
+  async function submit(e){
+    e.preventDefault();
+    if(!pw||busy)return;
+    setBusy(true); setError(false);
+    try{
+      const res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:pw})});
+      if(res.ok){onUnlock();return;}
+      setError(true); setPw("");
+    }catch{setError(true);}
+    finally{setBusy(false);}
+  }
+  return(
+    <div className="lock-wrap">
+      <form className="lock" onSubmit={submit}>
+        <div className="lock-piece">♟</div>
+        <div className="lock-mark">Climb</div>
+        <p className="lock-sub">Your chess <b>Copilot</b>.<br/>Enter your passphrase to continue.</p>
+        <div className={"lock-field"+(error?" is-error":"")}>
+          <input ref={ref} type="password" value={pw} placeholder="Passphrase"
+            onChange={e=>{setPw(e.target.value);setError(false);}} autoComplete="current-password"/>
+          <button className="lock-go" type="submit" disabled={busy||!pw}>
+            <Icon name={busy?"spark":"arrow"} size={18} stroke={2}/>
+          </button>
+        </div>
+        <p className="lock-err">{error?"That's not it. Try again.":""}</p>
+        <p className="lock-foot">Private</p>
+      </form>
+    </div>
+  );
+}
+
+/* ========== APP SHELL ========== */
+function App(){
+  const [data,setData]=useState(null);
+  const [err,setErr]=useState(null);
+  const [locked,setLocked]=useState(false);
+  const [booting,setBooting]=useState(true);
+  const [refreshing,setRefreshing]=useState(false);
+  const [tab,setTab]=useState("today");
+  const lastLoad=useRef(0);
+
+  async function load(refresh,silent){
+    if(refresh&&!silent)setRefreshing(true);
+    try{setErr(null);
+      const res=await fetch("/api/stats"+(refresh?"?refresh=1":""));
+      if(res.status===401){setLocked(true);setBooting(false);setRefreshing(false);return;}
+      const txt=await res.text();
+      let j; try{j=JSON.parse(txt);}catch{throw new Error("Server returned a non-JSON response.");}
+      if(j.error)throw new Error(j.error);
+      setData(j); setLocked(false); lastLoad.current=Date.now();
+    }catch(e){if(!silent)setErr(e.message);}
+    finally{if(!silent){setBooting(false);setRefreshing(false);}}
+  }
+
+  useEffect(()=>{
+    load(false);
+    // auto-refresh every 4 hours while open
+    const FOUR_H=4*60*60*1000;
+    const id=setInterval(()=>load(true,true),FOUR_H);
+    // refresh on reopen/focus if data is older than 15 min (silent, no spinner)
+    const onVisible=()=>{
+      if(document.visibilityState==="visible" && Date.now()-lastLoad.current>15*60*1000) load(true,true);
+    };
+    document.addEventListener("visibilitychange",onVisible);
+    window.addEventListener("focus",onVisible);
+    // register service worker (enables Add-to-Home-Screen app + offline shell)
+    if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(()=>{});
+    return ()=>{clearInterval(id);document.removeEventListener("visibilitychange",onVisible);window.removeEventListener("focus",onVisible);};
+  },[]);
+
+  if(booting&&!locked)return <div className="loading"><div className="spin"/>Loading your games from Chess.com…</div>;
+  if(locked)return <Lock onUnlock={()=>{setLocked(false);setBooting(true);load(false);}}/>;
+  if(err)return <div className="errbox"><p><b>Couldn't load your games.</b></p><p>{err}</p><button className="refresh" onClick={()=>load(true)}>Retry</button></div>;
+  if(!data)return <div className="loading"><div className="spin"/>Loading your games from Chess.com…</div>;
+
+  const tabs=[["today","Today"],["patterns","Patterns"],["climb","Climb"],["wizard","Wizard"]];
+  const Screen={today:TodayScreen,patterns:PatternsScreen,climb:ClimbScreen,wizard:WizardScreen}[tab];
+  const updated=data.updated?new Date(data.updated).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):"";
+  return(
+    <React.Fragment>
+      <header className="app-header">
+        <div className="brand"><span className="brand-mark">Climb</span><span className="brand-tag">Your chess <b>Copilot</b></span></div>
+        <div className="hdr-actions">
+          <button className={"hdr-refresh"+(refreshing?" spinning":"")} onClick={()=>load(true)} disabled={refreshing} title={updated?("Updated "+updated):"Refresh"}>
+            <Icon name="refresh" size={15} stroke={2}/>{refreshing?"Syncing…":"Refresh"}
+          </button>
+          <div className="player-chip">
+            <div><div className="pc-name">{data.player}</div><div className="pc-sub">blitz · peak {data.peak} · puzzles {data.puzzle}</div></div>
+            <span className="pc-rating">{data.rating}</span>
+          </div>
+        </div>
+      </header>
+      <div className="stage">
+        <div className="phone">
+          <div className="phone-scroll" key={tab}><Screen d={data}/></div>
+          <nav className="botnav">{tabs.map(([id,label])=>(
+            <button key={id} className={"botnav-item"+(tab===id?" is-active":"")} onClick={()=>setTab(id)}>
+              <Icon name={id} size={21} stroke={tab===id?1.9:1.6}/><span>{label}</span>
+            </button>))}</nav>
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

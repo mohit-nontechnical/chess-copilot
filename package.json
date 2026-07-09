@@ -1,0 +1,13 @@
+{
+  "name": "chess-copilot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Chess Copilot — behavioral chess coaching (Climb UI) on live Chess.com data + OpenRouter wizard.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,14 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# runtime cache (Chess.com API responses)
+.cache/
+
+# deps / tooling
+node_modules/
+.vercel
+
+# OS noise
+.DS_Store
