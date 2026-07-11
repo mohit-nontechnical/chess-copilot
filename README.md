@@ -5,7 +5,7 @@ Point it at any public Chess.com account and it tells you *how you lose*, not ju
 
 Zero npm dependencies. One `node server.js` and it runs.
 
-<!-- TODO: add a real screenshot at docs/screenshot.png -->
+![Climb: Today screen with live Chess.com stats](docs/screenshot.png)
 
 ## What it does
 
